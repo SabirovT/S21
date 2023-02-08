@@ -146,7 +146,7 @@ class S21(object):
         
         def linear(x, a, b): return a*x + b
         popt, pcov = curve_fit(linear, x, y)
-        if is_plot: plt.plot(x, linear(x, *popt), label='S_21')
+        #if is_plot: plt.plot(x, linear(x, *popt), label='S_21')
             
         def Arg(freq, freq_r, phi, gamma1, gamma2, alpha, rabi_freq, tau):
             t = (freq_r - freq) / gamma2
@@ -159,7 +159,7 @@ class S21(object):
         p0 = [freq_r, phi, gamma1, gamma2, alpha, rabi_freq, tau]
         popt, pcov = curve_fit(Arg, x, y, p0=p0, maxfev=100000)
         error = np.sqrt(np.sum((y - Arg(x, *popt))**2))
-        if is_plot: plt.plot(x, Arg(y, *popt), label='S_21')
+        if is_plot: plt.plot(x, Arg(x, *popt), label='S_21')
         if is_plot: plt.scatter(freq_r, Arg(freq_r, *popt))
         
         if e_info: return popt, pcov, error
@@ -270,13 +270,38 @@ class S21(object):
             plt.scatter(x, y, 1)
             plt.scatter(x[ids], y[ids], 1)
             plt.scatter(np.real(baseline_deleted_ellipse), np.imag(baseline_deleted_ellipse), c='r', s=1)
-            plt.show()
         
         if e_info: return popt, baseline_deleted_ellipse, error(popt, x[ids], y[ids])
         else: return popt, baseline_deleted_ellipse
+        
+        
+    def fit_geometrical(self, cut=-1, is_plot=False):
+        popt, pcov = self.fit_abs(cut=cut, is_plot=is_plot)
+        plt.xlabel('Freq, Hz')
+        plt.ylabel('Abs(S_21)')
+        plt.show()
+
+        popt, pcov = self.fit_arg(cut=cut, is_plot=is_plot)
+        plt.xlabel('Freq, Hz')
+        plt.ylabel('Arg(S_21)')
+        plt.show()
+        alpha, tau = popt[-3], popt[-1]
+
+        tmp_data = np.copy(self.data[cut])
+        self.data[cut] /= np.exp(1j*alpha)*np.exp(1j*tau*self.freq)
+        self.update_data()
+
+        popt, baseline_deleted_ellipse = self.fit_ellipse(cut=cut, is_plot=is_plot)
+        plt.xlabel('Real(S_21)')
+        plt.ylabel('Imag(S_21)')
+        plt.show()
+        
+        self.data[cut] = tmp_data
+        self.update_data()
+        
             
 
-    def remove_background(self, remove_baseline=False, is_plot=False):
+    def remove_background(self, remove_baseline=False, is_plot=False, cut=None):
         for cut in range(len(self.power)):
 #             try:
                 popt, pcov, error = self.fit_abs(cut=cut, e_info=True)
